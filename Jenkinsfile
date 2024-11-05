@@ -2,11 +2,11 @@ pipeline {
     agent any
     
     environment {
-        AZURE_SUBSCRIPTION_ID = credentials('AZURE_SUBSCRIPTION_ID')
-        AZURE_TENANT_ID = credentials('AZURE_TENANT_ID')
-        AZURE_CLIENT_ID = credentials('AZURE_CLIENT_ID')
-        AZURE_CLIENT_SECRET = credentials('AZURE_CLIENT_SECRET')
         AZURE_CREDS = credentials('AZURE_SERVICE_PRINCIPAL')
+        TERRAFORM_STORAGE_ACCOUNT = credentials('TERRAFORM_STORAGE_ACCOUNT')
+        TERRAFORM_CONTAINER = credentials('TERRAFORM_CONTAINER')
+        TERRAFORM_KEY = credentials('TERRAFORM_KEY')
+        TERRAFORM_ACCESS_KEY = credentials('TERRAFORM_ACCESS_KEY')
     }
     
     tools {
@@ -18,7 +18,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'main', url: 'https://github.com/jm0077/java-demo-app.git'
             }
         }
         
@@ -48,7 +48,11 @@ pipeline {
                         -backend-config="storage_account_name=${TERRAFORM_STORAGE_ACCOUNT}" \
                         -backend-config="container_name=${TERRAFORM_CONTAINER}" \
                         -backend-config="key=${TERRAFORM_KEY}" \
-                        -backend-config="access_key=${TERRAFORM_ACCESS_KEY}"
+                        -backend-config="access_key=${TERRAFORM_ACCESS_KEY}" \
+                        -backend-config="subscription_id=${AZURE_CREDS_SUBSCRIPTION_ID}" \
+                        -backend-config="tenant_id=${AZURE_CREDS_TENANT_ID}" \
+                        -backend-config="client_id=${AZURE_CREDS_CLIENT_ID}" \
+                        -backend-config="client_secret=${AZURE_CREDS_CLIENT_SECRET}"
                     '''
                 }
             }
@@ -59,10 +63,10 @@ pipeline {
                 dir('terraform') {
                     sh '''
                         terraform plan \
-                        -var="subscription_id=${AZURE_SUBSCRIPTION_ID}" \
-                        -var="tenant_id=${AZURE_TENANT_ID}" \
-                        -var="client_id=${AZURE_CLIENT_ID}" \
-                        -var="client_secret=${AZURE_CLIENT_SECRET}" \
+                        -var="subscription_id=${AZURE_CREDS_SUBSCRIPTION_ID}" \
+                        -var="tenant_id=${AZURE_CREDS_TENANT_ID}" \
+                        -var="client_id=${AZURE_CREDS_CLIENT_ID}" \
+                        -var="client_secret=${AZURE_CREDS_CLIENT_SECRET}" \
                         -out=tfplan
                     '''
                 }
@@ -88,9 +92,9 @@ pipeline {
                     withCredentials([azureServicePrincipal('AZURE_SERVICE_PRINCIPAL')]) {
                         sh '''
                             az login --service-principal \
-                            -u $AZURE_CLIENT_ID \
-                            -p $AZURE_CLIENT_SECRET \
-                            --tenant $AZURE_TENANT_ID
+                            -u $AZURE_CREDS_CLIENT_ID \
+                            -p $AZURE_CREDS_CLIENT_SECRET \
+                            --tenant $AZURE_CREDS_TENANT_ID
                             
                             az webapp deploy \
                             --name ${appServiceName} \
