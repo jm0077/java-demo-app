@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     environment {
-        AZURE_CREDS = credentials('AZURE_SERVICE_PRINCIPAL')
+        AZURE_CREDS = credentials('AzureSPForDeployments')
         TERRAFORM_STORAGE_ACCOUNT = credentials('TERRAFORM_STORAGE_ACCOUNT')
         TERRAFORM_CONTAINER = credentials('TERRAFORM_CONTAINER')
         TERRAFORM_KEY = credentials('TERRAFORM_KEY')
