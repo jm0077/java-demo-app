@@ -18,7 +18,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: '*/master', url: 'https://github.com/jm0077/java-demo-app.git'
+                git branch: 'master', url: 'https://github.com/jm0077/java-demo-app.git'
             }
         }
         
