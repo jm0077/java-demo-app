@@ -114,46 +114,57 @@ pipeline {
             }
         }
         
-        stage('Deploy to Azure') {
-            steps {
-                script {
-                    dir('terraform') {
-                        def appServiceName = sh(
-                            script: "terraform output -raw app_service_name",
-                            returnStdout: true
-                        ).trim()
-                        
-                        withEnv(["APP_SERVICE_NAME=${appServiceName}"]) {
-                            sh """
-                                # Login to Azure
-                                az login --service-principal \
-                                -u \$AZURE_CREDS_CLIENT_ID \
-                                -p \$AZURE_CREDS_CLIENT_SECRET \
-                                --tenant \$AZURE_CREDS_TENANT_ID
+		stage('Install Dependencies') {
+			steps {
+				sh '''
+					sudo apt-get update
+					sudo apt-get install -y zip
+				'''
+			}
+		}
 
-                                # Stop the web app before deployment
-                                az webapp stop --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
+		stage('Deploy to Azure') {
+			steps {
+				script {
+					dir('terraform') {
+						def appServiceName = sh(
+							script: "terraform output -raw app_service_name",
+							returnStdout: true
+						).trim()
+						
+						withEnv(["APP_SERVICE_NAME=${appServiceName}"]) {
+							sh """
+								# Login to Azure
+								az login --service-principal \
+								-u \$AZURE_CREDS_CLIENT_ID \
+								-p \$AZURE_CREDS_CLIENT_SECRET \
+								--tenant \$AZURE_CREDS_TENANT_ID
 
-                                # Deploy using direct JAR deployment
-                                cd ../target
-                                az webapp deploy \
-                                --resource-group new-resource-group-java-app \
-                                --name \$APP_SERVICE_NAME \
-                                --src-path demo-0.0.1-SNAPSHOT.jar \
-                                --type jar \
-                                --async false
+								# Stop the web app before deployment
+								az webapp stop --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
 
-                                # Start the web app after deployment
-                                az webapp start --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
+								# Create deployment package
+								cd ../target
+								zip -j app.zip demo-0.0.1-SNAPSHOT.jar
+								
+								# Deploy using ZIP deployment
+								az webapp deployment source config-zip \
+								--resource-group new-resource-group-java-app \
+								--name \$APP_SERVICE_NAME \
+								--src app.zip
 
-                                # Restart to ensure changes take effect
-                                az webapp restart --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
-                            """
-                        }
-                    }
-                }
-            }
-        }
+								# Start the web app after deployment
+								az webapp start --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
+								
+								# Restart to ensure changes take effect
+								sleep 10
+								az webapp restart --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
+							"""
+						}
+					}
+				}
+			}
+}
     }
     
     post {
