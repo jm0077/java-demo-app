@@ -62,6 +62,9 @@ pipeline {
         stage('Terraform Plan') {
             steps {
                 dir('terraform') {
+                    // Añadir este echo para debug
+                    sh 'echo "Using Client ID: ${AZURE_CREDS_CLIENT_ID}"'
+					
                     sh '''
                         terraform plan \
                         -var="subscription_id=${AZURE_CREDS_SUBSCRIPTION_ID}" \
