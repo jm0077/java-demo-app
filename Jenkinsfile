@@ -113,15 +113,6 @@ pipeline {
                 }
             }
         }
-        
-		stage('Install Dependencies') {
-			steps {
-				sh '''
-					sudo apt-get update
-					sudo apt-get install -y zip
-				'''
-			}
-		}
 
 		stage('Deploy to Azure') {
 			steps {
@@ -164,7 +155,7 @@ pipeline {
 					}
 				}
 			}
-}
+		}
     }
     
     post {
