@@ -145,17 +145,6 @@ resource "azurerm_linux_web_app" "app_service" {
     use_32_bit_worker = true
     websockets_enabled = false
 
-    ip_restriction {
-      action = "Allow"
-      headers {
-        x_azure_fdid = ["*"]
-        x_fd_health_probe = ["1"]
-        x_forwarded_for = ["*"]
-        x_forwarded_host = ["*"]
-      }
-      priority = 1
-      service_tag = "AzureFrontDoor.Backend"
-    }
   }
 
   logs {
