@@ -109,8 +109,8 @@ resource "azurerm_linux_web_app" "app_service" {
     "JWT_SECRET"                         = var.jwt_secret
     "WEBSITES_PORT"                      = "8080"
     
-    # Optimized Java settings
-    "JAVA_OPTS"                          = "-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom"
+    # Optimized Java settings for F1 tier
+    "JAVA_OPTS"                          = "-Xms256m -Xmx512m -XX:+UseSerialGC -Djava.security.egd=file:/dev/./urandom"
     "SPRING_PROFILES_ACTIVE"             = "prod"
     
     # Deployment settings
@@ -125,14 +125,14 @@ resource "azurerm_linux_web_app" "app_service" {
   }
 
   site_config {
-    always_on = true  # Cambiado a true para mantener la aplicación activa
+    always_on = false  # Required for F1 tier
     application_stack {
       java_version = "17"
       java_server = "JAVA"
       java_server_version = "17"
     }
 
-    # Comando de inicio simplificado y más robusto
+    # Comando de inicio optimizado para recursos limitados
     app_command_line = "java $JAVA_OPTS -jar /home/site/wwwroot/demo-0.0.1-SNAPSHOT.jar --server.port=8080"
     
     cors {
@@ -146,7 +146,7 @@ resource "azurerm_linux_web_app" "app_service" {
     # Configuraciones adicionales
     ftps_state = "Disabled"
     minimum_tls_version = "1.2"
-    use_32_bit_worker = false  # Cambiado a false para mejor rendimiento
+    use_32_bit_worker = true  # Required for F1 tier
   }
 
   logs {
@@ -154,13 +154,13 @@ resource "azurerm_linux_web_app" "app_service" {
     failed_request_tracing = true
     
     application_logs {
-      file_system_level = "Information"  # Aumentado para mejor diagnóstico
+      file_system_level = "Information"
     }
     
     http_logs {
       file_system {
-        retention_in_days = 7
-        retention_in_mb   = 50
+        retention_in_days = 1
+        retention_in_mb   = 25  # Reduced for F1 tier
       }
     }
   }
