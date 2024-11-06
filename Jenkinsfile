@@ -134,18 +134,20 @@ pipeline {
                                 # Stop the web app before deployment
                                 az webapp stop --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
 
-                                # Create deployment ZIP file
+                                # Deploy using direct JAR deployment
                                 cd ../target
-                                zip -r app.zip *.jar
-                        
-                                # Deploy using ZIP deployment
-                                az webapp deployment source config-zip \
+                                az webapp deploy \
                                 --resource-group new-resource-group-java-app \
                                 --name \$APP_SERVICE_NAME \
-                                --src app.zip
-        
+                                --src-path demo-0.0.1-SNAPSHOT.jar \
+                                --type jar \
+                                --async false
+
                                 # Start the web app after deployment
                                 az webapp start --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
+
+                                # Restart to ensure changes take effect
+                                az webapp restart --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
                             """
                         }
                     }
