@@ -52,7 +52,8 @@ pipeline {
                         -backend-config="subscription_id=${AZURE_CREDS_SUBSCRIPTION_ID}" \
                         -backend-config="tenant_id=${AZURE_CREDS_TENANT_ID}" \
                         -backend-config="client_id=${AZURE_CREDS_CLIENT_ID}" \
-                        -backend-config="client_secret=${AZURE_CREDS_CLIENT_SECRET}"
+                        -backend-config="client_secret=${AZURE_CREDS_CLIENT_SECRET}" \
+                        -force-copy
                     '''
                 }
             }
