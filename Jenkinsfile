@@ -119,7 +119,7 @@ pipeline {
                 script {
                     dir('terraform') {
                         def appServiceName = sh(
-                            script: "terraform output -raw app_service_url",
+                            script: "terraform output -raw app_service_url | cut -d'.' -f1",
                             returnStdout: true
                         ).trim()
                         
@@ -149,7 +149,7 @@ pipeline {
                                 sleep 30
 
                                 # Verificar el estado de la aplicación
-                                MAX_RETRIES=
+                                MAX_RETRIES=10
                                 RETRY_COUNT=0
 								RETRY_INTERVAL=60
                                 HEALTH_URL="https://\$APP_SERVICE_NAME.azurewebsites.net/actuator/health"
@@ -163,7 +163,7 @@ pipeline {
                                     else
                                         echo "Intento \$((RETRY_COUNT+1))/\$MAX_RETRIES - Estado: \$HTTP_STATUS"
                                         RETRY_COUNT=\$((RETRY_COUNT+1))
-                                        sleep 60
+                                        sleep \$RETRY_INTERVAL
                                     fi
                                 done
 
