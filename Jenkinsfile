@@ -142,15 +142,16 @@ pipeline {
                                 --resource-group new-resource-group-java-app \
                                 --name \$APP_SERVICE_NAME \
                                 --src app.zip \
-                                --timeout 300
+                                --timeout 3600
 
                                 # Esperar que la aplicación se inicie
                                 echo "Esperando que la aplicación inicie..."
                                 sleep 30
 
                                 # Verificar el estado de la aplicación
-                                MAX_RETRIES=5
+                                MAX_RETRIES=
                                 RETRY_COUNT=0
+								RETRY_INTERVAL=60
                                 HEALTH_URL="https://\$APP_SERVICE_NAME.azurewebsites.net/actuator/health"
                                 
                                 while [ \$RETRY_COUNT -lt \$MAX_RETRIES ]; do
