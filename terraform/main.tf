@@ -108,6 +108,8 @@ resource "azurerm_linux_web_app" "app_service" {
     "API_KEY"                            = var.api_key
     "JWT_SECRET"                         = var.jwt_secret
     "WEBSITES_PORT"                      = "8080"
+    "JAVA_OPTS"                          = "-Dserver.port=8080 -Xms512m -Xmx1024m"
+    "SPRING_PROFILES_ACTIVE"             = "prod"
   }
 
   site_config {
@@ -118,11 +120,14 @@ resource "azurerm_linux_web_app" "app_service" {
       java_server_version = "17"
     }
 
+    app_command_line = "java $JAVA_OPTS -jar /home/site/wwwroot/demo-0.0.1-SNAPSHOT.jar"
+    
     cors {
       allowed_origins = ["*"]
     }
 
     health_check_path = "/actuator/health"
+    health_check_eviction_time_in_min = 2
   }
 
   logs {

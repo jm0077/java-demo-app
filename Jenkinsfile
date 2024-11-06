@@ -131,34 +131,35 @@ pipeline {
 								-p \$AZURE_CREDS_CLIENT_SECRET \
 								--tenant \$AZURE_CREDS_TENANT_ID
 
+								# Stop the web app before deployment
+								echo "Stopping web app..."
+								az webapp stop \
+								--name \$APP_SERVICE_NAME \
+								--resource-group new-resource-group-java-app
+
 								# Create deployment package
 								cd ../target
 								zip -j app.zip demo-0.0.1-SNAPSHOT.jar
 								
-								# Deploy using ZIP deployment with longer timeout
+								# Deploy using ZIP deployment
 								az webapp deployment source config-zip \
 								--resource-group new-resource-group-java-app \
 								--name \$APP_SERVICE_NAME \
 								--src app.zip \
-								--timeout 1800
+								--timeout 600
 
 								echo "Waiting for deployment to complete..."
 								sleep 30
 
-								# Ensure the app is running and configured correctly
-								az webapp config set \
-								--resource-group new-resource-group-java-app \
-								--name \$APP_SERVICE_NAME \
-								--startup-file "java -jar /home/site/wwwroot/demo-0.0.1-SNAPSHOT.jar"
-
+								# Start the web app
 								echo "Starting web app..."
 								az webapp start \
 								--name \$APP_SERVICE_NAME \
 								--resource-group new-resource-group-java-app
 
-								# Check app status
+								# Check app status with shorter timeout
 								echo "Checking web app status..."
-								for i in {1..12}; do
+								for i in {1..6}; do
 									STATUS=\$(az webapp show \
 										--name \$APP_SERVICE_NAME \
 										--resource-group new-resource-group-java-app \
@@ -172,6 +173,19 @@ pipeline {
 										sleep 30
 									fi
 								done
+
+								# Verify deployment
+								DEPLOYMENT_STATUS=\$(az webapp deployment list-publishing-credentials \
+									--name \$APP_SERVICE_NAME \
+									--resource-group new-resource-group-java-app \
+									--query scmUri -o tsv)
+									
+								if [ -n "\$DEPLOYMENT_STATUS" ]; then
+									echo "Deployment completed successfully!"
+								else
+									echo "Deployment verification failed!"
+									exit 1
+								fi
 							"""
 						}
 					}
