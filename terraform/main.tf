@@ -91,7 +91,7 @@ resource "azurerm_service_plan" "app_service_plan" {
   location            = azurerm_resource_group.example.location
   resource_group_name = azurerm_resource_group.example.name
   os_type             = "Linux"
-  sku_name            = "B1"
+  sku_name            = "P0v3"
 }
 
 # Creación de un Linux Web App para la aplicación Java
@@ -99,72 +99,22 @@ resource "azurerm_linux_web_app" "app_service" {
   name                = var.app_service_name
   location            = azurerm_resource_group.example.location
   resource_group_name = azurerm_resource_group.example.name
-  service_plan_id     = azurerm_service_plan.app_service_plan.id
+  service_plan_id      = azurerm_service_plan.app_service_plan.id
 
   app_settings = {
-    # Configuraciones optimizadas para F1
-    "WEBSITES_ENABLE_APP_SERVICE_STORAGE" = "true"
-    "WEBSITE_RUN_FROM_PACKAGE"           = "1"
-    "API_URL"                            = var.api_url
-    "API_KEY"                            = var.api_key
-    "JWT_SECRET"                         = var.jwt_secret
-    "WEBSITES_PORT"                      = "8080"
-    # Optimizaciones de memoria para Java en F1
-    "JAVA_OPTS"                          = "-Xms128m -Xmx256m -XX:+UseSerialGC -Djava.security.egd=file:/dev/./urandom"
-    "SPRING_PROFILES_ACTIVE"             = "prod"
-    # Optimizaciones adicionales
-    "WEBSITE_WARM_UP_PATH"               = "/actuator/health"
-    "WEBSITE_SWAP_WARMUP_PING_PATH"      = "/actuator/health"
-    "WEBSITE_SWAP_WARMUP_PING_STATUSES"  = "200"
-    "WEBSITE_INIT_TIMEOUT_SEC"           = "240"
-    "JAVA_TOOL_OPTIONS"                  = "-Dfile.encoding=UTF-8"
   }
 
   site_config {
-    always_on = false  # Requerido para F1
+    always_on        = true
     application_stack {
-      java_version = "17"
-      java_server = "JAVA"
+      java_version   = "17"
+      java_server    = "JAVA"
       java_server_version = "17"
     }
-
-    # Comando de inicio optimizado
-    app_command_line = "JAVA_HOME=/opt/java/openjdk java $JAVA_OPTS -jar /home/site/wwwroot/demo-0.0.1-SNAPSHOT.jar --server.port=8080 --spring.profiles.active=prod"
-
-    cors {
-      allowed_origins = ["*"]
-    }
-
-    # Configuración de health check más tolerante
-    health_check_path = "/actuator/health"
-    health_check_eviction_time_in_min = 10
-    
-    # Configuraciones adicionales optimizadas
-    ftps_state = "Disabled"
-    minimum_tls_version = "1.2"
-    use_32_bit_worker = true
-    websockets_enabled = false
-
+    ftps_state = "FtpsOnly"
   }
 
-  logs {
-    application_logs {
-      file_system_level = "Error"
-    }
-    
-    http_logs {
-      file_system {
-        retention_in_days = 1
-        retention_in_mb   = 25
-      }
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [
-      app_settings["WEBSITE_RUN_FROM_PACKAGE"],
-    ]
-  }
+  https_only = true
 }
 
 # Exportación de las salidas principales
@@ -172,6 +122,6 @@ output "resource_group_name" {
   value = azurerm_resource_group.example.name
 }
 
-output "app_service_name" {
-  value = azurerm_linux_web_app.app_service.name
+output "app_service_url" {
+  value = azurerm_linux_web_app.app_service.default_hostname
 }

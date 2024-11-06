@@ -119,7 +119,7 @@ pipeline {
                 script {
                     dir('terraform') {
                         def appServiceName = sh(
-                            script: "terraform output -raw app_service_name",
+                            script: "terraform output -raw app_service_url",
                             returnStdout: true
                         ).trim()
                         
