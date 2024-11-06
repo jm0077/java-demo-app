@@ -121,14 +121,14 @@ pipeline {
                         script: "terraform output -raw app_service_name",
                         returnStdout: true
                     ).trim()
-            
+                    
                     // Usar las credenciales que ya tenemos configuradas
                     sh """
                         az login --service-principal \
                         -u $AZURE_CREDS_CLIENT_ID \
                         -p $AZURE_CREDS_CLIENT_SECRET \
                         --tenant $AZURE_CREDS_TENANT_ID
-
+        
                         az webapp deploy \
                         --name ${appServiceName} \
                         --resource-group new-resource-group-java-app \
@@ -138,6 +138,7 @@ pipeline {
                 }
             }
         }
+    }
     
     post {
         always {
