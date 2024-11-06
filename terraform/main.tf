@@ -108,8 +108,12 @@ resource "azurerm_linux_web_app" "app_service" {
     "API_KEY"                            = var.api_key
     "JWT_SECRET"                         = var.jwt_secret
     "WEBSITES_PORT"                      = "8080"
-    "JAVA_OPTS"                          = "-Dserver.port=8080 -Xms512m -Xmx1024m"
+    # Optimized Java settings for F1 tier
+    "JAVA_OPTS"                          = "-Xms256m -Xmx512m -XX:+UseSerialGC -Djava.security.egd=file:/dev/./urandom"
     "SPRING_PROFILES_ACTIVE"             = "prod"
+    # Disable server startup check
+    "WEBSITE_SKIP_CONTENTSHARE_VALIDATION" = "1"
+    "WEBSITE_ADD_SITENAME_BINDINGS_IN_APPHOST_CONFIG" = "1"
   }
 
   site_config {
@@ -120,25 +124,32 @@ resource "azurerm_linux_web_app" "app_service" {
       java_server_version = "17"
     }
 
-    app_command_line = "java $JAVA_OPTS -jar /home/site/wwwroot/demo-0.0.1-SNAPSHOT.jar"
+    # Simplified startup command
+    app_command_line = "JAVA_HOME=/opt/java/openjdk java $JAVA_OPTS -jar /home/site/wwwroot/demo-0.0.1-SNAPSHOT.jar --server.port=8080"
     
     cors {
       allowed_origins = ["*"]
     }
 
+    # Reduced health check interval
     health_check_path = "/actuator/health"
     health_check_eviction_time_in_min = 2
+
+    # Additional performance configurations
+    ftps_state = "Disabled"
+    minimum_tls_version = "1.2"
+    use_32_bit_worker = true
   }
 
   logs {
     application_logs {
-      file_system_level = "Information"
+      file_system_level = "Error"  # Reduced logging
     }
     
     http_logs {
       file_system {
-        retention_in_days = 7
-        retention_in_mb   = 35
+        retention_in_days = 1
+        retention_in_mb   = 25
       }
     }
   }

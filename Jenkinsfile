@@ -137,19 +137,28 @@ pipeline {
 								--name \$APP_SERVICE_NAME \
 								--resource-group new-resource-group-java-app
 
-								# Create deployment package
+								# Clean up any existing deployment
+								echo "Cleaning up previous deployment..."
+								az webapp config appsettings set \
+								--resource-group new-resource-group-java-app \
+								--name \$APP_SERVICE_NAME \
+								--settings WEBSITE_RUN_FROM_PACKAGE=""
+
+								# Create optimized deployment package
 								cd ../target
 								zip -j app.zip demo-0.0.1-SNAPSHOT.jar
 								
-								# Deploy using ZIP deployment
+								# Deploy using ZIP deployment with reduced timeout
+								echo "Deploying application..."
 								az webapp deployment source config-zip \
 								--resource-group new-resource-group-java-app \
 								--name \$APP_SERVICE_NAME \
 								--src app.zip \
-								--timeout 600
+								--timeout 180
 
-								echo "Waiting for deployment to complete..."
-								sleep 30
+								# Wait for deployment to complete
+								echo "Waiting for deployment to settle..."
+								sleep 15
 
 								# Start the web app
 								echo "Starting web app..."
@@ -157,9 +166,9 @@ pipeline {
 								--name \$APP_SERVICE_NAME \
 								--resource-group new-resource-group-java-app
 
-								# Check app status with shorter timeout
-								echo "Checking web app status..."
-								for i in {1..6}; do
+								# Monitor startup with reduced checks
+								echo "Monitoring startup..."
+								for i in {1..4}; do
 									STATUS=\$(az webapp show \
 										--name \$APP_SERVICE_NAME \
 										--resource-group new-resource-group-java-app \
@@ -167,23 +176,34 @@ pipeline {
 									
 									if [ "\$STATUS" = "Running" ]; then
 										echo "Web app is running!"
+										
+										# Verify application health
+										HEALTH_URL="https://\$APP_SERVICE_NAME.azurewebsites.net/actuator/health"
+										HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" \$HEALTH_URL)
+										
+										if [ "\$HTTP_STATUS" = "200" ]; then
+											echo "Application is healthy!"
+											exit 0
+										fi
+										
 										break
 									else
 										echo "Web app status: \$STATUS. Waiting..."
-										sleep 30
+										sleep 45
 									fi
 								done
 
-								# Verify deployment
-								DEPLOYMENT_STATUS=\$(az webapp deployment list-publishing-credentials \
+								# Final status check
+								FINAL_STATUS=\$(az webapp show \
 									--name \$APP_SERVICE_NAME \
 									--resource-group new-resource-group-java-app \
-									--query scmUri -o tsv)
+									--query state -o tsv)
 									
-								if [ -n "\$DEPLOYMENT_STATUS" ]; then
-									echo "Deployment completed successfully!"
-								else
-									echo "Deployment verification failed!"
+								if [ "\$FINAL_STATUS" != "Running" ]; then
+									echo "Application failed to start. Checking logs..."
+									az webapp log tail \
+										--name \$APP_SERVICE_NAME \
+										--resource-group new-resource-group-java-app
 									exit 1
 								fi
 							"""
