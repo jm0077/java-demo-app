@@ -125,16 +125,27 @@ pipeline {
                         
                         withEnv(["APP_SERVICE_NAME=${appServiceName}"]) {
                             sh """
+                                # Login to Azure
                                 az login --service-principal \
                                 -u \$AZURE_CREDS_CLIENT_ID \
                                 -p \$AZURE_CREDS_CLIENT_SECRET \
                                 --tenant \$AZURE_CREDS_TENANT_ID
 
-                                az webapp deploy \
-                                --name \$APP_SERVICE_NAME \
+                                # Stop the web app before deployment
+                                az webapp stop --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
+
+                                # Create deployment ZIP file
+                                cd ../target
+                                zip -r app.zip *.jar
+                        
+                                # Deploy using ZIP deployment
+                                az webapp deployment source config-zip \
                                 --resource-group new-resource-group-java-app \
-                                --src-path \$(pwd)/../target/*.jar \
-                                --type jar
+                                --name \$APP_SERVICE_NAME \
+                                --src app.zip
+        
+                                # Start the web app after deployment
+                                az webapp start --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
                             """
                         }
                     }

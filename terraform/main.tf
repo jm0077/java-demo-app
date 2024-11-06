@@ -102,24 +102,46 @@ resource "azurerm_linux_web_app" "app_service" {
   service_plan_id     = azurerm_service_plan.app_service_plan.id
 
   app_settings = {
-    "WEBSITES_ENABLE_APP_SERVICE_STORAGE" = "false"
+    "WEBSITES_ENABLE_APP_SERVICE_STORAGE" = "true"
     "WEBSITE_RUN_FROM_PACKAGE"           = "1"
     "API_URL"                            = var.api_url
     "API_KEY"                            = var.api_key
     "JWT_SECRET"                         = var.jwt_secret
-    "JAVA_VERSION"                       = "17"
     "WEBSITES_PORT"                      = "8080"
   }
 
   site_config {
     always_on = false
     application_stack {
-      java_version        = "17"
-      java_server        = "JAVA"
+      java_version = "17"
+      java_server = "JAVA"
       java_server_version = "17"
     }
+
+    cors {
+      allowed_origins = ["*"]
+    }
+
+    health_check_path = "/actuator/health"
+  }
+
+  logs {
+    application_logs {
+      file_system_level = "Information"
+    }
     
-    app_command_line = ""
+    http_logs {
+      file_system {
+        retention_in_days = 7
+        retention_in_mb   = 35
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      app_settings["WEBSITE_RUN_FROM_PACKAGE"],
+    ]
   }
 }
 
