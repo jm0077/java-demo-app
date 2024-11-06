@@ -91,7 +91,7 @@ resource "azurerm_service_plan" "app_service_plan" {
   location            = azurerm_resource_group.example.location
   resource_group_name = azurerm_resource_group.example.name
   os_type             = "Linux"
-  sku_name            = "F1"
+  sku_name            = "B1"
 }
 
 # Creación de un Linux Web App para la aplicación Java
