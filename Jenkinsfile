@@ -114,72 +114,56 @@ pipeline {
             }
         }
 
-        stage('Deploy to Azure') {
-            steps {
-                script {
-                    dir('terraform') {
-                        def appServiceName = sh(
-                            script: "terraform output -raw app_service_url | cut -d'.' -f1",
-                            returnStdout: true
-                        ).trim()
-                        
-                        withEnv(["APP_SERVICE_NAME=${appServiceName}"]) {
-                            sh """
-                                # Login to Azure
-                                az login --service-principal \
-                                -u \$AZURE_CREDS_CLIENT_ID \
-                                -p \$AZURE_CREDS_CLIENT_SECRET \
-                                --tenant \$AZURE_CREDS_TENANT_ID
+		stage('Deploy to Azure') {
+			steps {
+				script {
+					dir('terraform') {
+						def appServiceName = sh(
+							script: "terraform output -raw app_service_url | cut -d'.' -f1",
+							returnStdout: true
+						).trim()
+						
+						withEnv(["APP_SERVICE_NAME=${appServiceName}"]) {
+							sh """
+								# Login to Azure
+								az login --service-principal \
+								-u \$AZURE_CREDS_CLIENT_ID \
+								-p \$AZURE_CREDS_CLIENT_SECRET \
+								--tenant \$AZURE_CREDS_TENANT_ID
 
-                                # Preparar el deployment
-                                echo "Preparando deployment..."
-                                cd ../target
-                                zip -j app.zip demo-0.0.1-SNAPSHOT.jar
-                                
-                                # Deploy optimizado para F1
-                                echo "Iniciando deployment..."
-                                az webapp deployment source config-zip \
-                                --resource-group new-resource-group-java-app \
-                                --name \$APP_SERVICE_NAME \
-                                --src app.zip \
-                                --timeout 3600
+								# Preparar el deployment
+								echo "Preparando deployment..."
+								cd ../target
+								zip -j app.zip demo-0.0.1-SNAPSHOT.jar
+								
+								# Deploy usando el nombre correcto del App Service
+								echo "Iniciando deployment..."
+								az webapp deployment source config-zip \
+								--resource-group new-resource-group-java-app \
+								--name \$APP_SERVICE_NAME \
+								--src app.zip \
+								--timeout 3600
 
-                                # Esperar que la aplicación se inicie
-                                echo "Esperando que la aplicación inicie..."
-                                sleep 30
+								# Verificar el estado del deployment
+								echo "Verificando estado del deployment..."
+								DEPLOYMENT_STATUS=\$(az webapp show \
+									--name \$APP_SERVICE_NAME \
+									--resource-group new-resource-group-java-app \
+									--query state -o tsv)
 
-                                # Verificar el estado de la aplicación
-                                MAX_RETRIES=10
-                                RETRY_COUNT=0
-								RETRY_INTERVAL=60
-                                HEALTH_URL="https://\$APP_SERVICE_NAME.azurewebsites.net/actuator/health"
-                                
-                                while [ \$RETRY_COUNT -lt \$MAX_RETRIES ]; do
-                                    HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" \$HEALTH_URL || echo "000")
-                                    
-                                    if [ "\$HTTP_STATUS" = "200" ]; then
-                                        echo "Aplicación desplegada exitosamente!"
-                                        exit 0
-                                    else
-                                        echo "Intento \$((RETRY_COUNT+1))/\$MAX_RETRIES - Estado: \$HTTP_STATUS"
-                                        RETRY_COUNT=\$((RETRY_COUNT+1))
-                                        sleep \$RETRY_INTERVAL
-                                    fi
-                                done
-
-                                if [ \$RETRY_COUNT -eq \$MAX_RETRIES ]; then
-                                    echo "Error: La aplicación no respondió correctamente después de \$MAX_RETRIES intentos"
-                                    az webapp log tail \
-                                        --name \$APP_SERVICE_NAME \
-                                        --resource-group new-resource-group-java-app
-                                    exit 1
-                                fi
-                            """
-                        }
-                    }
-                }
-            }
-        }
+								if [ "\$DEPLOYMENT_STATUS" = "Running" ]; then
+									echo "Aplicación desplegada exitosamente!"
+									exit 0
+								else
+									echo "Error: La aplicación no está en estado Running. Estado actual: \$DEPLOYMENT_STATUS"
+									exit 1
+								fi
+							"""
+						}
+					}
+				}
+			}
+		}
     }
     
     post {
