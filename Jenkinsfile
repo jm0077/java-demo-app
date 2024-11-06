@@ -68,6 +68,10 @@ pipeline {
                         -var="tenant_id=${AZURE_CREDS_TENANT_ID}" \
                         -var="client_id=${AZURE_CREDS_CLIENT_ID}" \
                         -var="client_secret=${AZURE_CREDS_CLIENT_SECRET}" \
+                        -var="storage_account_name=${TERRAFORM_STORAGE_ACCOUNT}" \
+                        -var="container_name=${TERRAFORM_CONTAINER}" \
+                        -var="key=${TERRAFORM_KEY}" \
+                        -var="access_key=${TERRAFORM_ACCESS_KEY}" \
                         -out=tfplan
                     '''
                 }
