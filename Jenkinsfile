@@ -131,25 +131,47 @@ pipeline {
 								-p \$AZURE_CREDS_CLIENT_SECRET \
 								--tenant \$AZURE_CREDS_TENANT_ID
 
-								# Stop the web app before deployment
-								az webapp stop --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
-
 								# Create deployment package
 								cd ../target
 								zip -j app.zip demo-0.0.1-SNAPSHOT.jar
 								
-								# Deploy using ZIP deployment
+								# Deploy using ZIP deployment with longer timeout
 								az webapp deployment source config-zip \
 								--resource-group new-resource-group-java-app \
 								--name \$APP_SERVICE_NAME \
-								--src app.zip
+								--src app.zip \
+								--timeout 1800
 
-								# Start the web app after deployment
-								az webapp start --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
-								
-								# Restart to ensure changes take effect
-								sleep 10
-								az webapp restart --name \$APP_SERVICE_NAME --resource-group new-resource-group-java-app
+								echo "Waiting for deployment to complete..."
+								sleep 30
+
+								# Ensure the app is running and configured correctly
+								az webapp config set \
+								--resource-group new-resource-group-java-app \
+								--name \$APP_SERVICE_NAME \
+								--startup-file "java -jar /home/site/wwwroot/demo-0.0.1-SNAPSHOT.jar"
+
+								echo "Starting web app..."
+								az webapp start \
+								--name \$APP_SERVICE_NAME \
+								--resource-group new-resource-group-java-app
+
+								# Check app status
+								echo "Checking web app status..."
+								for i in {1..12}; do
+									STATUS=\$(az webapp show \
+										--name \$APP_SERVICE_NAME \
+										--resource-group new-resource-group-java-app \
+										--query state -o tsv)
+									
+									if [ "\$STATUS" = "Running" ]; then
+										echo "Web app is running!"
+										break
+									else
+										echo "Web app status: \$STATUS. Waiting..."
+										sleep 30
+									fi
+								done
 							"""
 						}
 					}
