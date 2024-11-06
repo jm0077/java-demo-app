@@ -16,32 +16,6 @@ pipeline {
     }
     
     stages {
-        stage('Debug Credentials') {
-            steps {
-                sh '''
-                    echo "Checking Azure-related environment variables:"
-                    env | grep -i azure || true
-                    
-                    echo "Checking Terraform-related environment variables:"
-                    env | grep -i terraform || true
-                    
-                    echo "Checking Azure CLI configuration:"
-                    az account show || true
-                    
-                    echo "Azure CLI config location:"
-                    echo $AZURE_CONFIG_DIR || true
-                    
-                    echo "Current Azure CLI login status:"
-                    az account list || true
-                    
-                    echo "Checking if credentials are set:"
-                    [ ! -z "$AZURE_CREDS_CLIENT_ID" ] && echo "AZURE_CREDS_CLIENT_ID is set" || echo "AZURE_CREDS_CLIENT_ID is NOT set"
-                    [ ! -z "$AZURE_CREDS_TENANT_ID" ] && echo "AZURE_CREDS_TENANT_ID is set" || echo "AZURE_CREDS_TENANT_ID is NOT set"
-                    [ ! -z "$AZURE_CREDS_SUBSCRIPTION_ID" ] && echo "AZURE_CREDS_SUBSCRIPTION_ID is set" || echo "AZURE_CREDS_SUBSCRIPTION_ID is NOT set"
-                    [ ! -z "$AZURE_CREDS_CLIENT_SECRET" ] && echo "AZURE_CREDS_CLIENT_SECRET is set" || echo "AZURE_CREDS_CLIENT_SECRET is NOT set"
-                '''
-            }
-        }
         
         stage('Checkout') {
             steps {
@@ -97,6 +71,18 @@ pipeline {
                         grep -A 10 "backend \\"azurerm\\"" *.tf || true
                     '''
                 }
+            }
+        }
+		
+		stage('Azure Login') {
+            steps {
+                    sh '''
+                        az login --service-principal \
+                        -u $AZURE_CREDS_CLIENT_ID \
+                        -p $AZURE_CREDS_CLIENT_SECRET \
+                        --tenant $AZURE_CREDS_TENANT_ID
+                        az account set --subscription $AZURE_CREDS_SUBSCRIPTION_ID
+                    '''
             }
         }
         
