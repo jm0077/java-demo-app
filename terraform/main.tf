@@ -108,48 +108,59 @@ resource "azurerm_linux_web_app" "app_service" {
     "API_KEY"                            = var.api_key
     "JWT_SECRET"                         = var.jwt_secret
     "WEBSITES_PORT"                      = "8080"
-    # Optimized Java settings for F1 tier
-    "JAVA_OPTS"                          = "-Xms256m -Xmx512m -XX:+UseSerialGC -Djava.security.egd=file:/dev/./urandom"
+    
+    # Optimized Java settings
+    "JAVA_OPTS"                          = "-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom"
     "SPRING_PROFILES_ACTIVE"             = "prod"
-    # Disable server startup check
+    
+    # Deployment settings
+    "WEBSITE_DEPLOYMENT_TIMEOUT"         = "1800" # 30 minutes
+    "SCM_COMMAND_IDLE_TIMEOUT"          = "1800"
     "WEBSITE_SKIP_CONTENTSHARE_VALIDATION" = "1"
     "WEBSITE_ADD_SITENAME_BINDINGS_IN_APPHOST_CONFIG" = "1"
+    
+    # Java specific settings
+    "JAVA_HOME"                         = "/opt/java/openjdk"
+    "PATH"                             = "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
   }
 
   site_config {
-    always_on = false
+    always_on = true  # Cambiado a true para mantener la aplicación activa
     application_stack {
       java_version = "17"
       java_server = "JAVA"
       java_server_version = "17"
     }
 
-    # Simplified startup command
-    app_command_line = "JAVA_HOME=/opt/java/openjdk java $JAVA_OPTS -jar /home/site/wwwroot/demo-0.0.1-SNAPSHOT.jar --server.port=8080"
+    # Comando de inicio simplificado y más robusto
+    app_command_line = "java $JAVA_OPTS -jar /home/site/wwwroot/demo-0.0.1-SNAPSHOT.jar --server.port=8080"
     
     cors {
       allowed_origins = ["*"]
     }
 
-    # Reduced health check interval
+    # Configuración de health check más tolerante
     health_check_path = "/actuator/health"
-    health_check_eviction_time_in_min = 2
+    health_check_eviction_time_in_min = 5
 
-    # Additional performance configurations
+    # Configuraciones adicionales
     ftps_state = "Disabled"
     minimum_tls_version = "1.2"
-    use_32_bit_worker = true
+    use_32_bit_worker = false  # Cambiado a false para mejor rendimiento
   }
 
   logs {
+    detailed_error_messages = true
+    failed_request_tracing = true
+    
     application_logs {
-      file_system_level = "Error"  # Reduced logging
+      file_system_level = "Information"  # Aumentado para mejor diagnóstico
     }
     
     http_logs {
       file_system {
-        retention_in_days = 1
-        retention_in_mb   = 25
+        retention_in_days = 7
+        retention_in_mb   = 50
       }
     }
   }

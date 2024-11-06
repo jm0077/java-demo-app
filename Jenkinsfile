@@ -131,6 +131,9 @@ pipeline {
 								-p \$AZURE_CREDS_CLIENT_SECRET \
 								--tenant \$AZURE_CREDS_TENANT_ID
 
+								# Ensure we're in the right subscription
+								az account set --subscription \$AZURE_CREDS_SUBSCRIPTION_ID
+
 								# Stop the web app before deployment
 								echo "Stopping web app..."
 								az webapp stop \
@@ -144,21 +147,22 @@ pipeline {
 								--name \$APP_SERVICE_NAME \
 								--settings WEBSITE_RUN_FROM_PACKAGE=""
 
-								# Create optimized deployment package
+								# Create deployment package
 								cd ../target
-								zip -j app.zip demo-0.0.1-SNAPSHOT.jar
+								jar -xf demo-0.0.1-SNAPSHOT.jar
+								zip -r app.zip *
 								
-								# Deploy using ZIP deployment with reduced timeout
+								# Deploy using ZIP deployment with increased timeout
 								echo "Deploying application..."
 								az webapp deployment source config-zip \
 								--resource-group new-resource-group-java-app \
 								--name \$APP_SERVICE_NAME \
 								--src app.zip \
-								--timeout 180
+								--timeout 1800
 
-								# Wait for deployment to complete
+								# Wait for deployment to settle
 								echo "Waiting for deployment to settle..."
-								sleep 15
+								sleep 30
 
 								# Start the web app
 								echo "Starting web app..."
@@ -166,9 +170,12 @@ pipeline {
 								--name \$APP_SERVICE_NAME \
 								--resource-group new-resource-group-java-app
 
-								# Monitor startup with reduced checks
+								# Monitor startup with increased checks and timeout
 								echo "Monitoring startup..."
-								for i in {1..4}; do
+								MAX_RETRIES=20
+								RETRY_COUNT=0
+								
+								while [ \$RETRY_COUNT -lt \$MAX_RETRIES ]; do
 									STATUS=\$(az webapp show \
 										--name \$APP_SERVICE_NAME \
 										--resource-group new-resource-group-java-app \
@@ -177,35 +184,39 @@ pipeline {
 									if [ "\$STATUS" = "Running" ]; then
 										echo "Web app is running!"
 										
-										# Verify application health
-										HEALTH_URL="https://\$APP_SERVICE_NAME.azurewebsites.net/actuator/health"
-										HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" \$HEALTH_URL)
-										
-										if [ "\$HTTP_STATUS" = "200" ]; then
-											echo "Application is healthy!"
-											exit 0
-										fi
-										
-										break
+										# Verify application health with retry
+										HEALTH_RETRIES=3
+										for i in \$(seq 1 \$HEALTH_RETRIES); do
+											HEALTH_URL="https://\$APP_SERVICE_NAME.azurewebsites.net/actuator/health"
+											HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" \$HEALTH_URL)
+											
+											if [ "\$HTTP_STATUS" = "200" ]; then
+												echo "Application is healthy!"
+												exit 0
+											fi
+											
+											echo "Health check attempt \$i failed. Waiting..."
+											sleep 30
+										done
 									else
-										echo "Web app status: \$STATUS. Waiting..."
-										sleep 45
+										echo "Web app status: \$STATUS. Attempt \$RETRY_COUNT of \$MAX_RETRIES"
+										RETRY_COUNT=\$((RETRY_COUNT + 1))
+										sleep 60
 									fi
 								done
 
-								# Final status check
-								FINAL_STATUS=\$(az webapp show \
+								# If we get here, deployment failed
+								echo "Deployment failed after maximum retries. Collecting logs..."
+								az webapp log tail \
 									--name \$APP_SERVICE_NAME \
-									--resource-group new-resource-group-java-app \
-									--query state -o tsv)
+									--resource-group new-resource-group-java-app
+								
+								echo "Checking Java process status..."
+								az webapp ssh --command "ps aux | grep java" \
+									--name \$APP_SERVICE_NAME \
+									--resource-group new-resource-group-java-app
 									
-								if [ "\$FINAL_STATUS" != "Running" ]; then
-									echo "Application failed to start. Checking logs..."
-									az webapp log tail \
-										--name \$APP_SERVICE_NAME \
-										--resource-group new-resource-group-java-app
-									exit 1
-								fi
+								exit 1
 							"""
 						}
 					}
